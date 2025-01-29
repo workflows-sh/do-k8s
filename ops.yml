@@ -26,7 +26,7 @@ commands:
         - DO_DEV_POSTGRES_CONFIG
         - DO_DEV_MYSQL_CONFIG
   # deploy your service and workflow to kubernetes infrastructure on digitalocean
-  - name: deploy-do-k8s-cdktf:0.1.8
+  - name: deploy-do-k8s-cdktf:0.1.9
     run: ./node_modules/.bin/ts-node /ops/src/deploy.ts
     description: "Deploy a service to Kubernetes infrastructure on DigitalOcean"
     env:
@@ -41,10 +41,6 @@ commands:
         - DO_SPACES_ACCESS_KEY_ID
         - DO_SPACES_SECRET_ACCESS_KEY
         - TFC_TOKEN
-        - DORA_REMOTE_REG_USERNAME
-        - DORA_REMOTE_REG_PASSWORD
-        - DORA_AUTH_TEAM
-        - DORA_AUTH_TOKEN
       # store environment host and database configurations
       configs:
         - DEV_DO_K8S_CDKTF_STATE
@@ -53,10 +49,6 @@ commands:
         - DO_DEV_SERVICES
         - DO_STG_SERVICES
         - DO_PRD_SERVICES
-        - DORA_CONTROLLER_REPO
-        - DORA_CONTROLLER_RELEASE_TAG
-        - DORA_WRITER_REPO
-        - DORA_WRITER_RELEASE_TAG
     # destroy resources and services in your kubernetes infrastructure  
   - name: destroy-do-k8s-cdktf:0.1.4
     run: ./node_modules/.bin/ts-node /ops/src/destroy.ts

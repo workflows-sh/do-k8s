@@ -10,11 +10,13 @@ import { Exec, pexec } from '../utils'
 interface StackProps {
     cluster: any
     org: string
+    env: string
 }
 
 export default class Dora extends TerraformStack {
     public readonly id: string
     public readonly org: string | undefined
+    public readonly env: string
     public readonly props: StackProps | undefined
 
     constructor(scope: Construct, id: string, props?: StackProps) {
@@ -22,6 +24,7 @@ export default class Dora extends TerraformStack {
         this.props = props
         this.org = props?.org ?? 'cto-ai'
         this.id = id
+        this.env = props?.env ?? 'dev'
 
         new DigitaloceanProvider(this, `${this.id}-provider`, {
             token: process.env.DO_TOKEN,
@@ -37,38 +40,51 @@ export default class Dora extends TerraformStack {
             }
         })
     }
-
     async initialize() {
+        
+        const doraRemoteRegUser = await sdk.getConfig(`DO_${this.env.toUpperCase()}_DORA_REMOTE_REG_USERNAME`) || '';
+        const doraRemoteRegPass = await sdk.getConfig(`DO_${this.env.toUpperCase()}_DORA_REMOTE_REG_PASSWORD`) || '';
+        const doraAuthTeam = await sdk.getConfig(`DO_${this.env.toUpperCase()}_DORA_AUTH_TEAM`) || '';
+        const doraAuthToken = await sdk.getConfig(`DO_${this.env.toUpperCase()}_DORA_AUTH_TOKEN`) || '';
+        const doraControllerReleaseTag = await sdk.getConfig(`DO_${this.env.toUpperCase()}_DORA_CONTROLLER_RELEASE_TAG`) || '';
+        const doraControllerRepo = await sdk.getConfig(`DO_${this.env.toUpperCase()}_DORA_CONTROLLER_REPO`) || '';
+        const doraWriterReleaseTag = await sdk.getConfig(`DO_${this.env.toUpperCase()}_DORA_WRITER_RELEASE_TAG`) || '';
+        const doraWriterRepo = await sdk.getConfig(`DO_${this.env.toUpperCase()}_DORA_WRITER_REPO`) || '';
 
-        if (!process.env.DORA_REMOTE_REG_USERNAME || !process.env.DORA_REMOTE_REG_PASSWORD) {
-            sdk.log('You must provide a image pull secret for dora controller')
-            return
+
+        const notInitialize = doraRemoteRegUser == "" ||
+        doraRemoteRegPass == "" ||
+        doraAuthTeam == "" ||
+        doraAuthToken == "" ||
+        doraControllerReleaseTag == "" ||
+        doraControllerRepo == "" ||
+        doraWriterReleaseTag == "" ||
+        doraWriterRepo == "" ;
+        if(!notInitialize){
+            this.doraInit(
+                doraRemoteRegUser,
+                doraRemoteRegPass,
+                doraAuthTeam,
+                doraAuthToken,
+                doraControllerReleaseTag,
+                doraControllerRepo,
+                doraWriterReleaseTag,
+                doraWriterRepo
+            );
         }
+    }
 
-        if (!process.env.DORA_AUTH_TEAM || !process.env.DORA_AUTH_TOKEN) {
-            sdk.log('You must provide a dora team id and token for dora controller')
-            return
-        }
+    async doraInit(
+        doraRemoteRegUser: string,
+        doraRemoteRegPass: string,
+        doraAuthTeam: string,
+        doraAuthToken: string,
+        doraControllerReleaseTag: string,
+        doraControllerRepo: string,
+        doraWriterReleaseTag: string,
+        doraWriterRepo: string
+    ) {
 
-        if (!process.env.DORA_CONTROLLER_RELEASE_TAG || !process.env.DORA_CONTROLLER_REPO) {
-            sdk.log('You must provide a dora controller release tag and repo')
-            return
-        }
-
-        if (!process.env.DORA_WRITER_RELEASE_TAG || !process.env.DORA_WRITER_REPO) {
-            sdk.log('You must provide a dora writer release tag and repo')
-            return
-        }
-
-        const doraControllerReleaseTag = process.env.DORA_CONTROLLER_RELEASE_TAG
-        const doraControllerRepo = process.env.DORA_CONTROLLER_REPO
-        const doraWriterReleaseTag = process.env.DORA_WRITER_RELEASE_TAG
-        const doraWriterRepo = process.env.DORA_WRITER_REPO
-
-        const doraRegUserName = process.env.DORA_REMOTE_REG_USERNAME
-        const doraRegPass = process.env.DORA_REMOTE_REG_PASSWORD
-        const doraAuthTeam = process.env.DORA_AUTH_TEAM
-        const doraAuthToken = process.env.DORA_AUTH_TOKEN
 
         new KubectlProvider(this, `${this.id}-kubectl-provider`, {
             host: this.props?.cluster?.cluster?.endpoint,
@@ -77,7 +93,7 @@ export default class Dora extends TerraformStack {
         })
 
         // install dora controller
-        const ghAuthCmd = `echo ${doraRegPass} | gh auth login --with-token`
+        const ghAuthCmd = `echo ${doraRemoteRegPass} | gh auth login --with-token`
         await Exec(ghAuthCmd)
             .catch(err => { throw err })
 
@@ -94,7 +110,7 @@ export default class Dora extends TerraformStack {
         }
 
         // add image pull secret to cluster
-        const imgPullSecretYmlCmd = `kubectl create secret docker-registry ${secretName} --docker-username=${doraRegUserName} --docker-password=${doraRegPass} --docker-server=ghcr.io -n ${namespace} --dry-run=client -o yaml`
+        const imgPullSecretYmlCmd = `kubectl create secret docker-registry ${secretName} --docker-username=${doraRemoteRegUser} --docker-password=${doraRemoteRegPass} --docker-server=ghcr.io -n ${namespace} --dry-run=client -o yaml`
         const imgPullSecretYml = await this.getYaml(imgPullSecretYmlCmd)
             .catch(err => { throw err })
         if (imgPullSecretYml !== undefined) {
