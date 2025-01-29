@@ -61,7 +61,8 @@ export class Stack {
 
     const dora = new Dora(app, `${this.env}-dora-controller-${this.key}`,{
       org: this.org,
-      cluster: cluster
+      cluster: cluster,
+      env: this.env
     })
     await dora.initialize()
 

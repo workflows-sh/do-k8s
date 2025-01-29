@@ -53,9 +53,8 @@ RUN npm install --loglevel=error
 
 ADD --chown=ops:9999 . .
 
-RUN npm run get && npm run synth
+RUN npm run get
 
-RUN chown ops:9999 cdktf.out
 ADD --chown=ops:9999 ./credentials.tfrc.json /home/ops/.terraform.d/credentials.tfrc.json
 ADD --chown=ops:9999 ./.terraform.d /home/ops/.terraform.d
 
